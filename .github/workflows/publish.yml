@@ -1,0 +1,33 @@
+name: Publish next reel
+
+on:
+  schedule:
+    - cron: "0 12-14 * * *"     # backup: hourly 20:00-22:00 SGT; posts only if a post is due
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Post now even if the 2-day gap hasn't passed"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write                # lets the job push post.json back
+
+concurrency: publish             # runs queue up, never post side by side
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          MEDIA_BASE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        run: python3 publish.py next ${{ github.event_name == 'schedule' && '--window --gap 2' || (!inputs.force && '--once --gap 2' || '') }}
+      - name: Record posted item
+        run: |
+          git config user.name "publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add queue
+          git diff --cached --quiet || { git commit -m "Posted $(date -u +%F)"; git push; }
