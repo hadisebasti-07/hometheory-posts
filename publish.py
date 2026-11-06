@@ -24,6 +24,7 @@ QUEUE = os.path.join(ROOT, "queue")
 SGT = dt.timezone(dt.timedelta(hours=8))
 WINDOW = (20, 23)          # post only 20:00-22:59 SGT when --window is set
 DEFAULT_GAP_DAYS = 2       # one Reel every two days
+START_DATE = dt.date(2026, 11, 7)   # scheduled runs never post before this (SGT); a forced run ignores it
 
 
 def http(method, path, params=None):
@@ -91,6 +92,8 @@ def cmd_next(args):
         gap = int(args[args.index("--gap") + 1])
     if "--window" in args and not (WINDOW[0] <= now.hour < WINDOW[1]):
         print(f"Outside posting window ({now:%H:%M} SGT); nothing to do."); return
+    if ("--window" in args or "--once" in args) and now.date() < START_DATE:
+        print(f"Posting starts {START_DATE}; nothing to do."); return
     last = last_posted_sgt_date()
     if "--once" in args and last == now.date():
         print("Already posted today (SGT); nothing to do."); return
