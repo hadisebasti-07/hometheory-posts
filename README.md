@@ -1,6 +1,6 @@
 # HomeTheory SG: automatic Reel posting
 
-A public GitHub repo holds a queue of finished Reels. **Every day at 20:00 SGT**, cron-job.org starts a GitHub Actions job. The job publishes the next approved Reel through the Instagram API, but **only if the last post was 2 or more days ago**. That gives one Reel every 2 days with no server and no paid service.
+A public GitHub repo holds a queue of finished Reels. **Every day at 20:00 SGT**, cron-job.org starts a GitHub Actions job. The job publishes the next approved Reel through the Instagram API, but **only if nothing has been posted that day**. That gives one Reel a day with no server and no paid service.
 
 ```
 ig-queue/
@@ -25,7 +25,7 @@ The lowest-numbered folder that is approved and not yet posted goes out next. Af
 | Check what posts next | `MEDIA_BASE=https://<owner>.github.io/<repo> IG_ACCESS_TOKEN=x python3 publish.py next --dry-run` |
 | Hold a Reel back | Set `"approved": false` in its `post.json`, then push |
 | Reorder | Rename the `NN-` folders |
-| Post now (ignore the 2-day gap) | GitHub → Actions → *Publish next reel* → Run workflow → tick **force** |
+| Post now (ignore the daily limit) | GitHub → Actions → *Publish next reel* → Run workflow → tick **force** |
 | Refresh the Instagram token (every < 60 days) | `IG_ACCESS_TOKEN=… python3 publish.py refresh-token`, then paste it into the repo secret |
 
 Always `git pull` before editing the queue: the workflow pushes a commit after every post.
@@ -46,7 +46,7 @@ Always `git pull` before editing the queue: the workflow pushes a commit after e
 **cron-job.org**
 - [ ] URL `https://api.github.com/repos/<owner>/<repo>/actions/workflows/publish.yml/dispatches`, method **POST**, body `{"ref":"main"}`.
 - [ ] Headers: `Authorization: Bearer github_pat_…`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`.
-- [ ] Schedule: **every day**, minute `0`, hour `20`, time zone Asia/Singapore. `publish.py` skips the days in between. Check that the preview shows one time per day.
+- [ ] Schedule: **every day**, minute `0`, hour `20`, time zone Asia/Singapore. Check that the preview shows one time per day.
 - [ ] Notify on failure. Test only at 20:00–22:59 SGT on a day a post is due, because the test posts for real.
 
 GitHub's own schedule (hourly 20:00–22:00 SGT) is a backup. It only posts inside that window, and only when a post is due.
@@ -54,4 +54,4 @@ GitHub's own schedule (hourly 20:00–22:00 SGT) is a backup. It only posts insi
 ## Reel rules
 - MP4 H.264 + AAC, 1080×1920, 30 fps (our renders already meet this). `queue_add.sh` remuxes with `faststart` and grabs `cover.jpg` from the hook frame.
 - Captions: hook line, 2–4 value lines, a send + follow CTA, "illustration only" and **"AI voiceover"** disclosure, and up to 5 hashtags.
-- Turn on the AI label manually in the app if Instagram asks; the caption line covers the disclosure in the meantime.
+- `publish.py` sets Instagram's AI label (`is_ai_generated`) on every Reel. Keep the "AI voiceover" caption line as well.

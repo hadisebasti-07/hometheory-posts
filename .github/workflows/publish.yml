@@ -9,6 +9,10 @@ on:
         description: "Post now even if the 2-day gap hasn't passed"
         type: boolean
         default: false
+      check_item:
+        description: "Test only: queue folder to validate with Instagram (nothing is published)"
+        type: string
+        default: ""
 
 permissions:
   contents: write                # lets the job push post.json back
@@ -20,11 +24,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Publish
+      - name: Validate only
+        if: ${{ inputs.check_item != '' }}
         env:
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           MEDIA_BASE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
-        run: python3 publish.py next ${{ github.event_name == 'schedule' && '--window --gap 2' || (!inputs.force && '--once --gap 2' || '') }}
+        run: python3 publish.py check "${{ inputs.check_item }}"
+      - name: Publish
+        if: ${{ inputs.check_item == '' }}
+        env:
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          MEDIA_BASE: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+        run: python3 publish.py next ${{ github.event_name == 'schedule' && '--window --gap 1' || (!inputs.force && '--once --gap 1' || '') }}
       - name: Record posted item
         run: |
           git config user.name "publisher"

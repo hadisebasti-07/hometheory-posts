@@ -23,7 +23,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 QUEUE = os.path.join(ROOT, "queue")
 SGT = dt.timezone(dt.timedelta(hours=8))
 WINDOW = (20, 23)          # post only 20:00-22:59 SGT when --window is set
-DEFAULT_GAP_DAYS = 2       # one Reel every two days
+DEFAULT_GAP_DAYS = 1       # one Reel every day
 START_DATE = dt.date(2026, 11, 7)   # scheduled runs never post before this (SGT); a forced run ignores it
 
 
@@ -69,10 +69,17 @@ def media_url(name, fname):
 def create_container(name, d):
     caption = open(os.path.join(d, "caption.txt"), encoding="utf-8").read().strip()
     params = {"media_type": "REELS", "video_url": media_url(name, "reel.mp4"),
-              "caption": caption, "share_to_feed": "true"}
+              "caption": caption, "share_to_feed": "true", "is_ai_generated": "true"}   # AI voiceover disclosure
     if os.path.exists(os.path.join(d, "cover.jpg")):
         params["cover_url"] = media_url(name, "cover.jpg")
-    cid = http("POST", "me/media", params)["id"]
+    try:
+        cid = http("POST", "me/media", params)["id"]
+    except SystemExit as e:
+        if "is_ai_generated" not in str(e) and "Invalid parameter" not in str(e):
+            raise
+        print(f"  WARNING: AI label rejected, posting without it - turn it on in the app. ({e})")
+        del params["is_ai_generated"]
+        cid = http("POST", "me/media", params)["id"]
     print(f"  container {cid}, waiting for Instagram to process the video…")
     for _ in range(60):                       # up to 10 minutes
         st = http("GET", cid, {"fields": "status_code,status"})
